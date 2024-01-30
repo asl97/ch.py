@@ -1,0 +1,23 @@
+on:
+  schedule:
+    - cron: '55 23 * * Sat'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - shell: bash
+        env:
+          CHPYBOT_PASSWORD: ${{ secrets.CHPYBOT_PASSWORD }}
+        run: |
+          pip install pytest
+          python -m pytest ch
