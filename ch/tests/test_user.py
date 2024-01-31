@@ -35,7 +35,9 @@ class Bot(ch.mixin.WindowsMainLoopFix, ch.RoomManager):
 
 
 def test_run():
-    if password := os.environ.get('CHPYBOT_PASSWORD'):
-        Bot.easy_start(['chpyroom'], 'chpybot', password)
+    user = os.environ.get('CHPYBOT_USER')
+    password = os.environ.get('CHPYBOT_PASSWORD')
+    if user and password:
+        Bot.easy_start(['chpyroom'], user, password)
     else:
         raise EnvironmentError('Password not found in ENV')

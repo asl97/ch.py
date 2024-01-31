@@ -18,6 +18,7 @@ jobs:
       - shell: bash
         env:
           CHPYBOT_PASSWORD: ${{ secrets.CHPYBOT_PASSWORD }}
+          CHPYBOT_USER: ${{ secrets.CHPYBOT_USER }}
         run: |
           pip install pytest
           python -m pytest ch
