@@ -15,10 +15,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
-      - shell: bash
+      - name: Install python test dependency
+        shell: bash
+        run: pip install pytest pytest-asyncio
+      - name: Run ch.py test cases
+        shell: bash
         env:
           CHPYBOT_PASSWORD: ${{ secrets.CHPYBOT_PASSWORD }}
           CHPYBOT_USER: ${{ secrets.CHPYBOT_USER }}
-        run: |
-          pip install pytest
-          python -m pytest ch
+        run: python -m pytest ch
