@@ -17,7 +17,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - name: Install python test dependency
         shell: bash
-        run: pip install pytest pytest-asyncio
+        run: pip install pytest pytest-asyncio pytest-timeout
       - name: Run ch.py test cases
         shell: bash
         env:
