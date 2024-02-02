@@ -23,4 +23,5 @@ jobs:
         env:
           CHPYBOT_PASSWORD: ${{ secrets.CHPYBOT_PASSWORD }}
           CHPYBOT_USER: ${{ secrets.CHPYBOT_USER }}
+          CHPYBOT_ROOM: ${{ secrets.CHPYBOT_ROOM }}
         run: python -m pytest ch

@@ -72,7 +72,7 @@ class TestCases():
         cls.config: dict[str, str] = {  # type: ignore
             'username': os.environ.get('CHPYBOT_USER'),
             'password': os.environ.get('CHPYBOT_PASSWORD'),
-            'roomname': 'chpyroom'
+            'roomname': os.environ.get('CHPYBOT_ROOM')
         }
         if cls.config['username'] and cls.config['password']:
             cls.instance = Bot(cls.config['username'], cls.config['password'])
