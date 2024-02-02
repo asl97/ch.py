@@ -79,11 +79,13 @@ class TestCases():
             raise EnvironmentError('Password not found in ENV')
 
     def setup_method(self, method):
-        if self.CE.fatal_error:
-            pytest.exit('fatal error encountered, bot thread stopped')
+        ...
 
     def teardown_method(self, method):
         self.CE.clearReplacement()
+
+        if self.CE.fatal_error:
+            pytest.exit('fatal error encountered, bot thread stopped')
 
     @pytest.mark.asyncio
     async def test_join_and_connect(tst):
