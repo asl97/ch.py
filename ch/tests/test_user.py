@@ -21,6 +21,7 @@ class CallEvent():
         self.replacement: dict[str, Callable[..., None]] = replacement or dict()
         self.future: asyncio.Future[Any]
         self.fatal_error = False
+        self.called_replacement: set[str] = set()
 
     def run_instance(self):
         try:
@@ -45,18 +46,21 @@ class CallEvent():
 
     def setReplacement(self, replacement: dict[str, Callable[..., None]] = None):
         self.replacement = replacement
+        self.called_replacement.clear()
         self.resetFuture()
 
     def clearReplacement(self):
         self.replacement.clear()
+        self.called_replacement.clear()
 
     def call(self, conn: ch.Conn, evt: str, *args: ..., **kw: ...):
         if (func := self.replacement.get(evt)) is not None:
+            self.called_replacement.add(evt)
             try:
                 func(self.instance, conn, *args, **kw)
             except Exception as e:
                 self.setFutureResult(e)
-            else:
+            if len(self.called_replacement) == len(self.replacement):
                 self.setFutureResult(None)
         else:
             self.func(conn, evt, *args, **kw)
