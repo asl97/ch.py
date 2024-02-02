@@ -118,6 +118,13 @@ class TestCases():
  
         await tst.CE.checkSuccess()
 
+    def test_check_room_owner(tst):
+        if room := tst.instance.getRoom(tst.config['roomname']):
+            assert room.ownername == tst.instance.user.name == tst.instance.name
+            assert room.owner == tst.instance.user
+        else:
+            raise RuntimeError('Room not found')
+
     @classmethod
     def teardown_class(cls):
         cls.instance.setTimeout(0, cls.instance.stop) 
