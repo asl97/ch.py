@@ -21,7 +21,7 @@ class CallEvent():
         self.replacement: dict[str, Callable[..., None]] = replacement or dict()
         self.future: asyncio.Future[Any]
         self.fatal_error = False
-        self.called_replacement: set[str] = set()
+        self.called_replacement: dict[str, Any] = dict()
 
     def run_instance(self):
         try:
@@ -38,11 +38,11 @@ class CallEvent():
         self.future = loop.create_future()
 
     async def checkSuccess(self):
-        result = await self.future
-        if issubclass(type(result), Exception):
-            raise result
+        results, error = await self.future
+        if error:
+            raise error
 
-        return result
+        return results
 
     def setReplacement(self, replacement: dict[str, Callable[..., None]] = None):
         self.replacement = replacement
@@ -54,14 +54,18 @@ class CallEvent():
         self.called_replacement.clear()
 
     def call(self, conn: ch.Conn, evt: str, *args: ..., **kw: ...):
+        """
+        If replacement function exists, call it and store the result.
+
+        Resolve the future when all replacement is called once or if an error was encountered.
+        """
         if (func := self.replacement.get(evt)) is not None:
-            self.called_replacement.add(evt)
             try:
-                func(self.instance, conn, *args, **kw)
+                self.called_replacement[evt] = func(self.instance, conn, *args, **kw)
             except Exception as e:
-                self.setFutureResult(e)
+                self.setFutureResult((self.called_replacement, e))
             if len(self.called_replacement) == len(self.replacement):
-                self.setFutureResult(None)
+                self.setFutureResult((self.called_replacement, None))
         else:
             self.func(conn, evt, *args, **kw)
 
@@ -90,6 +94,33 @@ class TestCases():
 
         if self.CE.fatal_error:
             pytest.exit('fatal error encountered, bot thread stopped')
+
+    @pytest.mark.asyncio
+    async def test_exception_returnable(tst):
+        class testException(Exception):
+            pass
+
+        def onTest(self, room):
+            return testException()
+
+        tst.CE.setReplacement({'onTest': onTest})
+        tst.instance.setTimeout(0, lambda: tst.instance._callEvent(None, 'onTest'))
+
+        results = await tst.CE.checkSuccess()
+        assert isinstance(results['onTest'], testException)
+
+    @pytest.mark.asyncio
+    async def test_exception_error(tst):
+        class testException(Exception):
+            pass
+
+        def onTest(self, room):
+            raise testException()
+
+        tst.CE.setReplacement({'onTest': onTest})
+        tst.instance.setTimeout(0, lambda: tst.instance._callEvent(None, 'onTest'))
+        with pytest.raises(testException):
+            await tst.CE.checkSuccess()
 
     @pytest.mark.asyncio
     async def test_join_and_connect(tst):
