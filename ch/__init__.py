@@ -324,6 +324,12 @@ class Message:
     ####
     # Attach/detach
     ####
+    class channels(enum.Enum):
+        None = 0
+        Red = 256
+        Blue = 2048
+        Mod = 32768
+
     def attach(self, room: Room, msgid: str):
         """
         Attach the Message to a message id.
@@ -1464,7 +1470,42 @@ class Room:
         if not self.silent:
             self._sendCommand("bmsg:tl2r", msg)
 
-    def message(self, msg: str, html: bool = False):
+    def message2(self, msg: str, html: bool = False, channel = "0"):
+        if self.silent:
+            return
+
+        msg = msg.rstrip()
+        if not html:
+            msg = msg.replace("<", "&lt;").replace(">", "&gt;")
+
+        if len(msg) > self._mgr.maxLength:
+            if self._mgr.tooBigMessage == BigMessage_Mode.Cut:
+                self.message(msg[:self._mgr.maxLength], html=html)
+            elif self._mgr.tooBigMessage == BigMessage_Mode.Multiple:
+                for index in range(0, len(msg), self._mgr.maxLength):
+                    self.message(msg[index:index+self._mgr.maxLength], html=html)
+            return
+
+        if self._bot_name.startswith("!anon"):
+            # if the bot is current login as anon
+            # use the anon n that was provided by the server
+            msg = "<n" + self._anon_n + "/>" + msg
+        else:
+            msg = "<n" + self.user.nameColor + "/>" + msg
+
+        if not self._bot_name.startswith("!anon"):
+            font_properties = "<f x%s%s=\"%s\">" % (self.user.fontSize.zfill(2),
+                                                    self.user.fontColor,
+                                                    self.user.fontFace)
+            msg = font_properties + msg
+
+        if "\n" in msg:
+            msg = msg.replace("\n", "\r")
+
+        msg.replace("~", "&#126;")
+        self._sendCommand("bm:tl2r:", Message.channels[channel], msg)
+
+    def message(self, msg: str, html: bool = False, channel = "0"):
         """
         Send a message. (Use "\n" for new line)
 

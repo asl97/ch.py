@@ -14,11 +14,12 @@ class Bot(ch.mixin.WindowsMainLoopFix, ch.RoomManager):
     disconnectOnEmptyConnAndTask = False
 
 class CallEvent():
-    def __init__(self, instance: ch.RoomManager , replacement: Optional[dict[str, Callable[..., None]]] = None):
+    def __init__(self, instance: ch.RoomManager , replacement: Optional[dict[str, Callable[..., None]]] = None, flags: Optional[set[str]] = None):
         self.instance = instance
         self.func = instance._callEvent
         instance._callEvent = self.call
         self.replacement: dict[str, Callable[..., None]] = replacement or dict()
+        self.flags: set[str] = flags or set()
         self.future: asyncio.Future[Any]
         self.fatal_error = False
         self.called_replacement: dict[str, Any] = dict()
@@ -44,10 +45,14 @@ class CallEvent():
 
         return results
 
-    def setReplacement(self, replacement: dict[str, Callable[..., None]] = None):
+    def setReplacement(self, replacement: dict[str, Callable[..., None]] = None, flags: Optional[set[str]] = None):
         self.replacement = replacement
+        self.flags = flags
         self.called_replacement.clear()
         self.resetFuture()
+
+    def clearFlag(self, flag):
+        self.flags.discard(flag)
 
     def clearReplacement(self):
         self.replacement.clear()
@@ -57,14 +62,15 @@ class CallEvent():
         """
         If replacement function exists, call it and store the result.
 
-        Resolve the future when all replacement is called once or if an error was encountered.
+        Resolve the future when all replacement is called once and all flags are cleared
+        or if an error was encountered.
         """
         if (func := self.replacement.get(evt)) is not None:
             try:
                 self.called_replacement[evt] = func(self.instance, conn, *args, **kw)
             except Exception as e:
                 self.setFutureResult((self.called_replacement, e))
-            if len(self.called_replacement) == len(self.replacement):
+            if len(self.called_replacement) == len(self.replacement) and not self.flags:
                 self.setFutureResult((self.called_replacement, None))
         else:
             self.func(conn, evt, *args, **kw)
@@ -134,6 +140,9 @@ class TestCases():
 
     @pytest.mark.asyncio
     async def test_message_and_receive(tst):
+        if not (room := tst.instance.getRoom(tst.config['roomname'])):
+            raise RuntimeError('Room not found')
+
         msg = "testing sending and receiving message"
 
         def onMessage(self, room, user, message):
@@ -142,10 +151,31 @@ class TestCases():
             assert room.name == tst.config['roomname'] == message.room.name
 
         tst.CE.setReplacement({'onMessage': onMessage})
-        if room := tst.instance.getRoom(tst.config['roomname']):
-            room.message(msg)
-        else:
+        room.message(msg)
+ 
+        await tst.CE.checkSuccess()
+
+    @pytest.mark.asyncio
+    async def test_message_and_receive_channel(tst):
+        if not (room := tst.instance.getRoom(tst.config['roomname'])):
             raise RuntimeError('Room not found')
+
+        Channels = ["None", "Red", "Blue"]
+        if self.user is room.owner or self.user in room.mods:
+            Channels.append("Mod")
+
+        def onMessage(self, room, user, message):
+            assert self.user == user == message.user
+            assert message.body == msg
+            assert room.name == tst.config['roomname'] == message.room.name
+            tst.CE.clearFlag(message.channel)
+
+
+        tst.CE.setReplacement({'onMessage': onMessage}, set(Channels))
+  
+        for channel in Channels:
+            msg = "testing sending and receiving message channel: "+channel
+            room.message(msg, channel=channel)
  
         await tst.CE.checkSuccess()
 
